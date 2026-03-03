@@ -2966,6 +2966,7 @@ async function fetchAllScores({ pageSize = 200 } = {}) {
 function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,727
 	const byTrait = new Map();
 	const byTraitPgsIds = new Map();
+	const byTraitVariants = new Map();
 	const byReleaseYear = new Map();
 
 	const variants = scores
@@ -2975,6 +2976,7 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 
 	for (const score of scores) {
 		const trait = score.trait_reported ?? "NR";
+		const scoreVariants = Number(score?.variants_number);
 		// console.log(`Processing score ID ${score.id}, trait_reported: ${trait}`);
 		byTrait.set(trait, (byTrait.get(trait) ?? 0) + 1);
 		if (!byTraitPgsIds.has(trait)) {
@@ -2982,6 +2984,18 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 		}
 		if (score?.id) {
 			byTraitPgsIds.get(trait).add(score.id);
+		}
+		if (Number.isFinite(scoreVariants)) {
+			if (!byTraitVariants.has(trait)) {
+				byTraitVariants.set(trait, {
+					min: scoreVariants,
+					max: scoreVariants,
+				});
+			} else {
+				const current = byTraitVariants.get(trait);
+				current.min = Math.min(current.min, scoreVariants);
+				current.max = Math.max(current.max, scoreVariants);
+			}
 		}
 
 		const yearMatch = (score.date_release ?? "").match(/^(\d{4})/);
@@ -3004,6 +3018,13 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 	const releaseYears = [...byReleaseYear.entries()]
 		.sort((a, b) => Number(a[0]) - Number(b[0]));
 
+	const traitVariantRange = Object.fromEntries(
+		[...byTraitVariants.entries()].map(([trait, range]) => [
+			trait,
+			{ min: range.min, max: range.max },
+		])
+	);
+
 	// console.log("topTraits:", [...byTrait.entries()].sort((a, b) => b[1] - a[1]));
 	//console.log("traitToPgsIds:", traitToPgsIds);
 	
@@ -3018,6 +3039,7 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 		},
 		topTraits,
 		traitToPgsIds,
+		traitVariantRange,
 		releaseYears,
 	};
 }
@@ -3046,12 +3068,19 @@ function renderScorePlot(summary) {
 	const topTraits = Array.isArray(summary?.topTraits) ? summary.topTraits : [];
 	const traits = topTraits.map((t) => t[0]);
 	const counts = topTraits.map((t) => t[1]);
+	const traitVariantRange = summary?.traitVariantRange ?? {};
+	const customData = traits.map((trait) => {
+		const range = traitVariantRange?.[trait] ?? {};
+		return [range.min ?? "NR", range.max ?? "NR"];
+	});
 
 	const data = [
 		{
 			type: "bar",
 			x: counts,
 			y: traits,
+			customdata: customData,
+			hovertemplate: "Trait: %{y}<br>Score count: %{x}<br>Variants range: %{customdata[0]} - %{customdata[1]}<extra></extra>",
 			orientation: "h",
 			marker: { color: "#0d6efd" },
 		},
