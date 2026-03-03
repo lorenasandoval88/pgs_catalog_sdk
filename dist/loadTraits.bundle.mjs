@@ -3140,5 +3140,54 @@ async function loadTraitStats() {
 	}
 }
 
-export { loadTraitStats };
+
+
+async function fetchTraits() {
+	console.log("Loading fetchTraits()...");
+
+	const cached = await getStoredTraitSummary();
+	console.log("Cached trait summary:", cached);
+
+	try {
+		if (cached?.summary && isCacheWithinMonths(cached.savedAt, 3)) {
+			return {
+				traits: cached.summary.traits ?? [],
+				summary: cached.summary,
+				source: "cache",
+				savedAt: cached.savedAt,
+			};
+		}
+
+		console.log("*****Fetching traits from PGS Catalog API...");
+		const traits = await fetchAllTraits({ pageSize: 200 });
+		const summary = computeSummary(traits);
+		await saveTraitSummary(summary);
+		console.log('------------------------------');
+		console.log("Total traits fetched:", traits.length);
+		console.log("Fetched traits data:", traits);
+		console.log("Summary:", summary);
+
+		return {
+			traits,
+			summary,
+			source: "live",
+			savedAt: new Date().toISOString(),
+		};
+	} catch (error) {
+		if (cached?.summary) {
+			console.error(error);
+			return {
+				traits: cached.summary.traits ?? [],
+				summary: cached.summary,
+				source: "cache-fallback",
+				savedAt: cached.savedAt,
+				error,
+			};
+		}
+
+		throw error;
+	}
+}
+
+export { fetchTraits, loadTraitStats };
 //# sourceMappingURL=loadTraits.bundle.mjs.map
