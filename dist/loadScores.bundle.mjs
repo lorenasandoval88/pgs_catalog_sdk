@@ -2926,6 +2926,7 @@ async function fetchAllScores({ pageSize = 200 } = {}) {
 
 function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,727
 	const byTrait = new Map();
+	const byTraitPgsIds = new Map();
 	const byReleaseYear = new Map();
 
 	const variants = scores
@@ -2935,7 +2936,14 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 
 	for (const score of scores) {
 		const trait = score.trait_reported ?? "NR";
+		console.log(`Processing score ID ${score.id}, trait_reported: ${trait}`);
 		byTrait.set(trait, (byTrait.get(trait) ?? 0) + 1);
+		if (!byTraitPgsIds.has(trait)) {
+			byTraitPgsIds.set(trait, new Set());
+		}
+		if (score?.id) {
+			byTraitPgsIds.get(trait).add(score.id);
+		}
 
 		const yearMatch = (score.date_release ?? "").match(/^(\d{4})/);
 		if (yearMatch) {
@@ -2946,12 +2954,22 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 
 	const topTraits = [...byTrait.entries()]
 		.sort((a, b) => b[1] - a[1])
-		.slice(0, 10);
+		.slice(0, 20);
+
+	const traitToPgsIds = Object.fromEntries(
+		[...byTrait.entries()]
+			.sort((a, b) => b[1] - a[1])
+			.map(([trait]) => [trait, [...(byTraitPgsIds.get(trait) ?? new Set())]])
+	);
 
 	const releaseYears = [...byReleaseYear.entries()]
 		.sort((a, b) => Number(a[0]) - Number(b[0]));
 
-	return {
+	console.log("topTraits:", [...byTrait.entries()]
+		.sort((a, b) => b[1] - a[1]));
+	console.log("traitToPgsIds:", traitToPgsIds);
+	
+		return {
 		totalScores: scores.length,
 		uniqueTraits: byTrait.size,
 		variants: {
@@ -2961,6 +2979,7 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 			median: quantile(variants, 0.5),
 		},
 		topTraits,
+		traitToPgsIds,
 		releaseYears,
 	};
 }
@@ -3001,7 +3020,7 @@ function renderScorePlot(summary) {
 
 	const layout = {
 		title: {
-			text: "Top 10 Reported Traits",
+			text: "Top 20 Reported Traits",
 			x: 0.5,
 			xanchor: "center",
 		},

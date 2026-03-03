@@ -2896,7 +2896,7 @@ async function saveTraitSummary(summary) {
 }
 
 async function getStoredTraitSummary() {
-    console.log("checking local cache for trait summary...");
+    // console.log("checking local cache for trait summary...");
 	return localforage.getItem(TRAIT_SUMMARY_KEY);
 }
 
@@ -2918,11 +2918,19 @@ function getCategoryEntries(summary) {
 
 	return entries.map((entry) => {
 		if (Array.isArray(entry)) {
+			const pgsIds = Array.isArray(entry[2]) ? entry[2] : [];
 			return {
 				category: entry[0],
-				"total associated traits": entry[1],
-				"total associated pgs ids": entry[2] ?? 0,
-				"trait data": entry[3] ?? [],
+				"traits_count": entry[1],
+				"pgs_ids": pgsIds,
+				"pgs_ids_count": pgsIds.length,
+				"traits": entry[3] ?? [],
+			};
+		}
+		if (entry && typeof entry === "object" && Array.isArray(entry["pgs_ids"])) {
+			return {
+				...entry,
+				"pgs_ids_count": entry["pgs_ids"].length,
 			};
 		}
 		return entry;
@@ -2936,7 +2944,7 @@ function renderStats(summary) { //used in loadTraitStats()
 
 	const topCategory = getCategoryEntries(summary)[0];
 	const topCategoryLabel = topCategory
-		? `${topCategory.category} (${formatNumber(topCategory["total associated traits"])})`
+		? `${topCategory.category} (${formatNumber(topCategory["traits_count"])})`
 		: "NR";
 
 	statsDiv.innerHTML = `
@@ -2958,7 +2966,7 @@ function renderTraitPlot(summary) {//used in loadTraitStats()
 
 	const categoryEntries = getCategoryEntries(summary);
 	const categories = categoryEntries.map((entry) => entry.category);
-	const counts = categoryEntries.map((entry) => entry["total associated traits"]);
+	const counts = categoryEntries.map((entry) => entry["traits_count"]);
 	console.log("Category entries for plot:", summary,categoryEntries);
 	const data = [
 		{
@@ -3043,7 +3051,7 @@ function computeSummary(traits) {//used in loadTraitStats()
 				id: trait?.id ?? trait?.efo_id ?? null,
 				// label: trait?.label ?? trait?.trait_label ?? trait?.name ?? "NR",
 				// efo_id: trait?.efo_id ?? null,
-				data: trait, // include full trait data for potential drill-down use
+				data: trait, // include full traits for potential drill-down use
 				// add other relevant fields as needed
 			});
 			// console.log(`Category "${category}" count is now: ${byCategory.get(category)}`);	
@@ -3054,24 +3062,25 @@ function computeSummary(traits) {//used in loadTraitStats()
 		.sort((a, b) => b[1] - a[1])
 		.map(([categoryName, count]) => ({
 			category: categoryName,
-			"total associated traits": count,
-			"total associated pgs ids": pgsIdsByCategory.get(categoryName)?.size ?? 0,
-			"trait data": traitDataByCategory.get(categoryName) ?? [],
+			"traits_count": count,
+			"pgs_ids": [...(pgsIdsByCategory.get(categoryName) ?? new Set())],
+			"pgs_ids_count": pgsIdsByCategory.get(categoryName)?.size ?? 0,
+			"traits": traitDataByCategory.get(categoryName) ?? [],
 		}));
 		//.slice(0, 10);
 
-	const totalAssociatedPgsIdsPerCategory = Object.fromEntries(
-		[...pgsIdsByCategory.entries()].map(([categoryName, pgsIdsSet]) => [
-			categoryName,
-			pgsIdsSet.size,
-		])
-	);
+	// const totalAssociatedPgsIdsPerCategory = Object.fromEntries(
+	// 	[...pgsIdsByCategory.entries()].map(([categoryName, pgsIdsSet]) => [
+	// 		categoryName,
+	// 		pgsIdsSet.size,
+	// 	])
+	// );
 
 	return {
         traits: traits,
 		totaltraits: traits.length,
 		totalCategories: byCategory.size,
-		totalAssociatedPgsIdsPerCategory,
+		// totalAssociatedPgsIdsPerCategory,
 		categories,
 	};
 }
