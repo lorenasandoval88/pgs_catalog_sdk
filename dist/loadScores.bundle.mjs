@@ -2881,20 +2881,31 @@ function isCacheWithinMonths(savedAt, months = 3) {
 	return savedDate >= cutoff;
 }
 
+// ---- core: fetch all scores (paginated) ---- total: 5298 as of 2024-06-20
 
+async function fetchOneScore(id) {
+const url = `${PGS_BASE}/score/${id}`;
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log(JSON.stringify(data, null, 2));
+  return data;
+}
 // ---- core: fetch all scores (paginated) ---- total: 5298 as of 2024-06-20
   // REST docs indicate paginated responses; default is 50 per page. :contentReference[oaicite:4]{index=4}
 async function fetchAllScores({ pageSize = 200 } = {}) {
 	let offset = 0;
 	const all = [];
-	let page = 0;
 
-	console.log(`[fetchAllScores] start pageSize=${pageSize}`);
+	// console.log(`[fetchAllScores] start pageSize=${pageSize}`);
 
 	while (true) {
-		page += 1;
 		const url = `${PGS_BASE}/score/all?format=json&limit=${pageSize}&offset=${offset}`;
-		console.log(`[fetchAllScores] page ${page} request: ${url}`);
+		// console.log(`[fetchAllScores] page ${page} request: ${url}`);
 		const response = await fetch(url);
 		if (!response.ok) throw new Error(`HTTP ${response.status} on ${url}`);
 		const data = await response.json();
@@ -2902,23 +2913,23 @@ async function fetchAllScores({ pageSize = 200 } = {}) {
 		const results = Array.isArray(data) ? data : (data.results ?? []);
 		if (!Array.isArray(results)) throw new Error("Unexpected response format from PGS API.");
 
-		console.log(
-			`[fetchAllScores] page ${page} received=${results.length} total_so_far=${all.length + results.length}`
-		);
+		// console.log(
+		// 	`[fetchAllScores] page ${page} received=${results.length} total_so_far=${all.length + results.length}`
+		// );
 
 		all.push(...results);
 
 		if (results.length === 0) {
-			console.log(`[fetchAllScores] stop: empty page at page ${page}`);
+			// console.log(`[fetchAllScores] stop: empty page at page ${page}`);
 			break;
 		}
 		if (!Array.isArray(data) && data.next == null && results.length < pageSize) {
-			console.log(`[fetchAllScores] stop: last page reached at page ${page}`);
+			// console.log(`[fetchAllScores] stop: last page reached at page ${page}`);
 			break;
 		}
 
 		offset += results.length;
-		console.log(`[fetchAllScores] next offset=${offset}`);
+		// console.log(`[fetchAllScores] next offset=${offset}`);
 	}
 	console.log(`[fetchAllScores] done total=${all.length}`);
 	return all;
@@ -2936,7 +2947,7 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 
 	for (const score of scores) {
 		const trait = score.trait_reported ?? "NR";
-		console.log(`Processing score ID ${score.id}, trait_reported: ${trait}`);
+		// console.log(`Processing score ID ${score.id}, trait_reported: ${trait}`);
 		byTrait.set(trait, (byTrait.get(trait) ?? 0) + 1);
 		if (!byTraitPgsIds.has(trait)) {
 			byTraitPgsIds.set(trait, new Set());
@@ -2965,9 +2976,8 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 	const releaseYears = [...byReleaseYear.entries()]
 		.sort((a, b) => Number(a[0]) - Number(b[0]));
 
-	console.log("topTraits:", [...byTrait.entries()]
-		.sort((a, b) => b[1] - a[1]));
-	console.log("traitToPgsIds:", traitToPgsIds);
+	// console.log("topTraits:", [...byTrait.entries()].sort((a, b) => b[1] - a[1]));
+	//console.log("traitToPgsIds:", traitToPgsIds);
 	
 		return {
 		totalScores: scores.length,
@@ -3068,8 +3078,8 @@ async function loadScores() {
 		await saveScoreSummary(results);
 		console.log("------------------------------");
 		console.log("Total scores fetched:", scores.length);
-		console.log("Fetched scores data:", scores);
-		console.log("Summary:", summary);
+		// console.log("Fetched scores data:", scores);
+		// console.log("Summary:", summary);
 
 		return results;
 	} catch (error) {
@@ -3147,5 +3157,5 @@ async function loadScoreStats() {
 	}
 }
 
-export { loadScoreStats, loadScores };
+export { fetchAllScores, fetchOneScore, loadScoreStats, loadScores };
 //# sourceMappingURL=loadScores.bundle.mjs.map
