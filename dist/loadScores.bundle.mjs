@@ -2837,11 +2837,10 @@ var localforageExports = requireLocalforage();
 var localforage = /*@__PURE__*/getDefaultExportFromCjs(localforageExports);
 
 const PGS_BASE = "https://www.pgscatalog.org/rest";
-const ALL_SCORE_SUMMARY_KEY = "pgs:all-score-summary";
 
-const TRAIT_SUMMARY_KEY = "pgs:trait-summary";
-
-const SCORES_PER_TRAIT_SUMMARY_KEY = "pgs:scores-per-trait-summary";
+const ALL_SCORE_SUMMARY_KEY = "pgs:all-score-summary"; //loadAllScores() & loadScores() uses this key to cache the full list of scores and their summary, which loadScores() can then use to source individual scores by ID without needing to fetch from network if cache is valid. Also used as source for getScoresPerTrait() to link traits to their specific scores and variants info, rather than relying on the more limited topTraits from the all-scores summary.
+const TRAIT_SUMMARY_KEY = "pgs:trait-summary"; // needed in getScoresPerTrait
+const SCORES_PER_TRAIT_SUMMARY_KEY = "pgs:scores-per-trait-summary"; // needed in getScoresPerTrait()
 
 function formatNumber(value, decimals = 0) {
 	if (value == null || Number.isNaN(value)) return "NR";
@@ -3324,6 +3323,8 @@ function getTraitToPgsIdsFromTraitSummary(traitSummary) {
 		.filter(([, ids]) => ids.length > 0);
 }
 
+
+
 async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } = {}) {
 	console.log("getScoresPerTrait():Loading scores per trait...");
 	const cached = await getStoredScoreSummary(SCORES_PER_TRAIT_SUMMARY_KEY);
@@ -3365,15 +3366,7 @@ async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } 
 
 //---------------END OF TRAIT-SCORE LINKING LOGIC------------------
 
-// const data = await loadScores();
-// const variantSubset30to70 = (data.scores ?? []).filter((score) => {
-// 	const variants = Number(score?.variants_number);
-// 	return Number.isFinite(variants) && variants >= 30 && variants <= 70;
-// });
-// console.log("Scores with variants_number between 30 and 70:", variantSubset30to70.length);
-// console.log("Subset sample (first 20):", variantSubset30to70.slice(0, 20));
-
-
+// Helper to build topTraits array for plotting, using scores-per-trait summary data which links traits to their specific scores and variants info, rather than relying on the more limited topTraits from the all-scores summary.
 async function loadScoreStats() {
 	const sourceStatus = document.getElementById("scoreSourceStatus");
 	const output = document.getElementById("scoreOutput");
