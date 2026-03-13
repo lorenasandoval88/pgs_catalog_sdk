@@ -3506,6 +3506,7 @@ async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } 
 
 	for (const [traitName, pgsIds] of traitEntries) {
 		if (processedTraits >= maxTraits) break;
+		console.log(`Building getScoresPerTrait for trait ${traitName} with ${pgsIds.length} associated PGS IDs...`);
 		const result = await loadScores(pgsIds);
 		scoresPerTrait[traitName] = {
 			pgs_ids: pgsIds,
@@ -3553,6 +3554,7 @@ async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infi
 
 	for (const [categoryName, pgsIds] of categoryEntries) {
 		if (processedCategories >= maxCategories) break;
+		console.log(`Building getScoresPerCategory for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
 		const result = await loadScores(pgsIds);
 		scoresPerCategory[categoryName] = {
 			pgs_ids: pgsIds,

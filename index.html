@@ -36,8 +36,7 @@
                             target="_blank">Code</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link"
-                            href="https://github.com/lorenasandoval88/get-pgscatalog-scores/wiki"
+                        <a class="nav-link" href="https://github.com/lorenasandoval88/get-pgscatalog-scores/wiki"
                             target="_blank">Docs</a>
                     </li>
                 </ul>
@@ -60,28 +59,41 @@
                         rel="noopener noreferrer">PGS Catalog</a></h6>
 
                 <hr class="my-3" />
+                <h1 class="mb-3">Try it out in the console:</h1>
+
+                <pre class="bg-light border rounded p-3"><code>try {
+                const pgs_catalog_sdk = await import("https://lorenasandoval88.github.io/get-pgscatalog-scores/dist/sdk.mjs");
+                let categories = await  pgs_catalog_sdk.getScoresPerCategory();
+                console.log("PGS categories loaded and cached in local storage:", categories);
+                } catch (error) {
+                    console.error("Failed to load categories:", error);
+                }</code></pre>
+
+
+
+                <hr class="my-3" />
                 <h1>PGS Catalog Statistics</h1>
                 <div id="traitSourceStatus" class="small text-muted mb-2">Source: checking...</div>
 
-                <div id="traitDiv" class="mb-3"></div>
-                <div id="traitChart" style="width:700px;height:400px;"></div>
+    <div id="traitDiv" class="mb-3" style="width:100%;max-width:700px;overflow:visible;"></div>
+                <div id="traitChart" style="width:100%;max-width:700px;height:400px;"></div>
                 <pre id="traitOutput"></pre>
 
-                
+
                 <hr class="my-4" />
 
-                  <div id="scoreSourceStatusCategory" class="small text-muted mb-2">Source: checking...</div>
+                <div id="scoreSourceStatusCategory" class="small text-muted mb-2">Source: checking...</div>
 
-                <div id="scoreCategoryDiv" class="mb-3"></div>
-                <div id="scoreCategoryChart" style="width:700px;height:500px;"></div>
+                <div id="scoreCategoryDiv" class="mb-3" style="width:100%;max-width:700px;overflow:visible;"></div>
+                <div id="scoreCategoryChart" style="width:700px;height:650px;"></div>
                 <pre id="scoreCategoryOutput"></pre>
 
                 <hr class="my-4" />
 
-                  <div id="scoreSourceStatusTrait" class="small text-muted mb-2">Source: checking...</div>
+                <div id="scoreSourceStatusTrait" class="small text-muted mb-2">Source: checking...</div>
 
-                <div id="scoreTraitDiv" class="mb-3"></div>
-                <div id="scoreTraitChart" style="width:700px;height:1100px;"></div>
+                <div id="scoreTraitDiv" class="mb-3" style="width:100%;max-width:700px;overflow:visible;"></div>
+                <div id="scoreTraitChart" style="width:100%;max-width:700px;height:1100px;"></div>
                 <pre id="scoreTraitOutput"></pre>
                 <!-- <h2>Participant Profiles</h2>
                 <p class="text-muted">First 10 unique participants with 23andMe data</p>
