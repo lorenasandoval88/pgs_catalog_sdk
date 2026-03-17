@@ -10697,6 +10697,8 @@ async function limitStorage(ids = []){
     });
 
     if (totalBytes < MAX_PGS_CACHE_BYTES) {
+            console.log(`Maximum bytes allowed: ${MAX_PGS_CACHE_BYTES} bytes. Current usage: ${totalBytes} bytes. No eviction needed.`);
+        console.log(`Total bytes in cache (pgs txts): ${totalBytes} bytes. No eviction needed.`);
         return;
     }
 
