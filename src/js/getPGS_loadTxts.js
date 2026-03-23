@@ -18,10 +18,12 @@ function getByteSize(value) {
 }
 
 async function getTxts(ids) {
-    console.log("get-pgscatalog-scores: getTxts()", ids)
+    console.log("getTxts()", ids)
     let data = await Promise.all(ids.map(async (id, i) => {
         let score = await localforage.getItem(`${PGS_KEY_PREFIX}${id}`)
+        console.log(`Cache lookup for ${PGS_KEY_PREFIX}${id}:`, score ? "HIT" : "MISS")
         if (score == null) {
+            console.log(`Cache miss for ${id}. Fetching from network...`)
             score = await parseScore(id, await fetchScore(id))
             score.cachedAt = Date.now()
             await localforage.setItem(`${PGS_KEY_PREFIX}${id}`, score);
