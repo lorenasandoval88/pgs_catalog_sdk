@@ -2871,14 +2871,6 @@ console.log(`rawTraitArrayFromAPI(), Completed fetching traits. Total fetched: $
   return all;
 }
 
-// ---- run/test fetchAllTraits ----
-// (async () => {
-//   const traits = await fetchAllTraits({ pageSize: 50 });
-//   console.log("PGS Catalog trait stats:");
-//   console.log("Total traits:", traits.length);
-//   console.log("First 5 traits:", traits.slice(0, 5));
-//  // console.log(JSON.stringify(traits, null, 2));
-// })();
 
 // ---- helpers for stats ----
 
@@ -3421,6 +3413,106 @@ function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,7
 		releaseYears,
 	};
 }
+function computeSummary2(scores) {
+	/**
+	 * Build aggregate score summary metrics and trait-level mappings.
+	 * Includes traitToPgsData for full score objects keyed by PGS ID.
+	 * @param {object[]} scores
+	 * @returns {{
+	 *   totalScores: number,
+	 *   uniqueTraits: number,
+	 *   variants: {min: number|null, max: number|null, mean: number|null, median: number|null},
+	 *   top10Traits: Array,
+	 *   pgs_ids: Object,
+	 *   traitToPgsData: Object,
+	 *   traitVariantRange: Object,
+	 *   releaseYears: Array
+	 * }}
+	 */
+	//console.log("computeSummary2(): Computing summary for scores...");
+	const byTrait = new Map();
+	const byTraitPgsIds = new Map();
+	const byTraitPgsData = new Map();
+	const byTraitVariants = new Map();
+	const byReleaseYear = new Map();
+
+	scores
+		.map((item) => Number(item.variants_number))
+		.filter((v) => Number.isFinite(v))
+		.sort((a, b) => a - b);
+
+	for (const score of scores) {
+		const trait = score.trait_reported ?? "NR";
+		const scoreVariants = Number(score?.variants_number);
+		const scoreId = score?.id;
+
+		// Count scores per trait
+		byTrait.set(trait, (byTrait.get(trait) ?? 0) + 1);
+
+		// Track PGS IDs and full score data per trait
+		if (scoreId != null && scoreId !== "") {
+			if (!byTraitPgsIds.has(trait)) {
+				byTraitPgsIds.set(trait, new Set());
+			}
+			byTraitPgsIds.get(trait).add(String(scoreId));
+
+			if (!byTraitPgsData.has(trait)) {
+				byTraitPgsData.set(trait, {});
+			}
+			byTraitPgsData.get(trait)[String(scoreId)] = score;
+		}
+
+		// Track variant ranges per trait
+		if (Number.isFinite(scoreVariants)) {
+			if (!byTraitVariants.has(trait)) {
+				byTraitVariants.set(trait, {
+					min: scoreVariants,
+					max: scoreVariants,
+				});
+			} else {
+				const current = byTraitVariants.get(trait);
+				current.min = Math.min(current.min, scoreVariants);
+				current.max = Math.max(current.max, scoreVariants);
+			}
+		}
+
+		// Track release years
+		const yearMatch = (score.date_release ?? "").match(/^(\d{4})/);
+		if (yearMatch) {
+			const y = yearMatch[1];
+			byReleaseYear.set(y, (byReleaseYear.get(y) ?? 0) + 1);
+		}
+	}
+
+	// Sort traits by score count (descending)
+	const sortedTraitEntries = [...byTrait.entries()].sort((a, b) => b[1] - a[1]);
+
+	Object.fromEntries(
+		sortedTraitEntries.map(([trait]) => [
+			trait,
+			[...(byTraitPgsIds.get(trait) ?? new Set())]
+		])
+	);
+
+	const traitToPgsData = Object.fromEntries(
+		sortedTraitEntries.map(([trait]) => [
+			trait,
+			byTraitPgsData.get(trait) ?? {}
+		])
+	);
+
+	[...byReleaseYear.entries()]
+		.sort((a, b) => Number(a[0]) - Number(b[0]));
+
+	Object.fromEntries(
+		[...byTraitVariants.entries()].map(([trait, range]) => [
+			trait,
+			{ min: range.min, max: range.max },
+		])
+	);
+
+	return traitToPgsData
+}
 
 function renderStats(summary) {
 	const statsDiv = document.getElementById("scoreTraitDiv");
@@ -3468,12 +3560,15 @@ function renderScorePlot(summary) {
 		},
 	];
 
+	const chartHeight = Math.max(200, traits.length * 35 + 100);
+
 	const layout = {
 		title: {
-			text: "Scoring files per Trait for Top 50 Reported Traits",
+			text: "Scoring files per Trait for Top 10 Reported Traits",
 			x: 0.5,
 			xanchor: "center",
 		},
+		height: chartHeight,
 		margin: { l: 260, r: 20, t: 90, b: 120 },
 		xaxis: {
 			title: {
@@ -3644,7 +3739,7 @@ async function loadAllScores() {
 		}
 
 		const scores = await fetchAllScores({ pageSize: 200 });
-		const summary = computeSummary(scores);
+		//const summary = computeSummary(scores);
 		results.scores = scores;
 		results.summary = summary;
 		await saveScoreSummary(results, ALL_SCORE_SUMMARY_KEY);
@@ -3667,8 +3762,12 @@ async function loadAllScores() {
 }
 
 
-// source scores from the cached pgs:all-score-summary dataset first 
-// (filtering .scores by requested IDs), and only fall back to network if needed. 
+// LOADS SPECIFIC SCORES BY ID
+// What happens:
+// 1. Checks if pgs:all-score-summary cache exists and is valid (< 3 months)
+// 2. If valid → extracts requested IDs from cached data (no network call)
+// 3. If IDs are missing from cache → fetches only missing IDs via fetchScores()
+// 4. Returns results but does NOT save them back to cache (cache is only for full list, not individual scores)
 async function loadScores(ids, ...moreIds) {
 	/**
 	 * Load specific scores by ID.
@@ -3844,7 +3943,7 @@ function getTraitToPgsIdsFromTraitSummary(traitSummary) {
 }
 
 
-
+// TRAITS/CATEGORIES are linked indirectly through the cached traitSummary object, using PGS IDs as the bridge.
 async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } = {}) {
 	/**
 	 * Build and cache trait -> scores mapping using trait-summary-linked PGS IDs.
@@ -3901,7 +4000,7 @@ async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } 
 
 //---------------START OF CATEGORY-SCORE LINKING LOGIC------------------
 
-
+// TODO error: 1700 traits vs 669. 
 async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infinity } = {}) {
 	/**
 	 * Build and cache category -> scores mapping using trait-summary-linked PGS IDs.
@@ -3955,122 +4054,58 @@ async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infi
 	await localforage.setItem(SCORES_PER_CATEGORY_SUMMARY_KEY, payload);
 	return payload;
 }
+async function getScoresPerCategory2({ forceRefresh = false } = {}) {
+	/**
+	 * Build and cache category -> scores mapping using trait-summary-linked PGS IDs.
+	 * Optimized: loads all scores once and builds a Map lookup instead of calling loadScores() per category.
+	 * @param {{ forceRefresh?: boolean }} [options]
+	 * @returns {Promise<object>}
+	 */
+	console.log("getScoresPerCategory2():Loading scores per category...");
+	const cached = await getStoredScoreSummary("SCORES_PER_CATEGORY_SUMMARY_KEY_2");
+	if (!forceRefresh && cached?.categories) {
+		return cached;
+	}
 
+	const traitSummary = await getStoredScoreSummary(TRAIT_SUMMARY_KEY);
+	if (!traitSummary?.summary && !traitSummary?.categories) {
+		throw new Error("Missing trait summary cache (TRAIT_SUMMARY_KEY). Run loadTraitStats() first.");
+	}
+
+	// Load all scores once and build a Map for fast lookup
+	const { scores: allScores } = await loadAllScores();
+	const scoreById = new Map(
+		allScores
+			.filter((score) => score?.id != null)
+			.map((score) => [String(score.id), score])
+	);
+
+	const categoryEntries = getCategoryToPgsIdsFromTraitSummary(traitSummary);
+	const categories = {};
+
+	for (const [categoryName, pgsIds] of categoryEntries) {
+		console.log(`Building getcategories for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
+		const categoryScores = pgsIds.map((id) => scoreById.get(String(id))).filter(Boolean);
+		categories[categoryName] = {
+			pgs_ids: pgsIds,
+			totalScores: pgsIds.length,
+			//scores: categoryScores,
+			traits: computeSummary2(categoryScores),
+		};
+	}
+
+	const payload = {
+		savedAt: new Date().toISOString(),
+		sourceTraitSavedAt: traitSummary?.savedAt ?? null,
+		totalCategoryEntries: categoryEntries.length,
+		categories,
+	};
+
+	await localforage.setItem("SCORES_PER_CATEGORY_SUMMARY_KEY_2", payload);
+	return payload;
+}
 //---------------END OF CATEGORY-SCORE LINKING LOGIC------------------
 
-
-// export async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } = {}) {
-// 	/**
-// 	 * Build and cache trait -> scores mapping using trait-summary-linked PGS IDs.
-// 	 * Optimized: loads all scores once and builds a Map lookup instead of calling loadScores() per trait.
-// 	 * @param {{ forceRefresh?: boolean, maxTraits?: number }} [options]
-// 	 * @returns {Promise<object>}
-// 	 */
-// 	console.log("getScoresPerTrait():Loading scores per trait...");
-// 	const cached = await getStoredScoreSummary(SCORES_PER_TRAIT_SUMMARY_KEY);
-// 	if (!forceRefresh && cached?.scoresPerTrait) {
-// 		return cached;
-// 	}
-
-// 	const traitSummary = await getStoredScoreSummary(TRAIT_SUMMARY_KEY);
-// 	if (!traitSummary?.summary && !traitSummary?.categories) {
-// 		throw new Error("Missing trait summary cache (TRAIT_SUMMARY_KEY). Run loadTraitStats() first.");
-// 	}
-
-// 	// Load all scores once and build a Map for fast lookup
-// 	const { scores: allScores } = await loadAllScores();
-// 	const scoreById = new Map(
-// 		allScores
-// 			.filter((score) => score?.id != null)
-// 			.map((score) => [String(score.id), score])
-// 	);
-
-// 	const traitEntries = getTraitToPgsIdsFromTraitSummary(traitSummary);
-// 	const scoresPerTrait = {};
-// 	let processedTraits = 0;
-
-// 	for (const [traitName, pgsIds] of traitEntries) {
-// 		if (processedTraits >= maxTraits) break;
-// 		console.log(`Building getScoresPerTrait for trait ${traitName} with ${pgsIds.length} associated PGS IDs...`);
-// 		const traitScores = pgsIds.map((id) => scoreById.get(String(id))).filter(Boolean);
-// 		scoresPerTrait[traitName] = {
-// 			pgs_ids: pgsIds,
-// 			scores: traitScores,
-// 			summary: computeSummary(traitScores),
-// 		};
-// 		processedTraits += 1;
-// 	}
-
-// 	const payload = {
-// 		savedAt: new Date().toISOString(),
-// 		sourceTraitSavedAt: traitSummary?.savedAt ?? null,
-// 		processedTraits,
-// 		totalTraitEntries: traitEntries.length,
-// 		scoresPerTrait,
-// 	};
-
-// 	await localforage.setItem(SCORES_PER_TRAIT_SUMMARY_KEY, payload);
-// 	return payload;
-// }
-
-// //---------------START OF CATEGORY-SCORE LINKING LOGIC------------------
-
-
-// export async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infinity } = {}) {
-// 	/**
-// 	 * Build and cache category -> scores mapping using trait-summary-linked PGS IDs.
-// 	 * Optimized: loads all scores once and builds a Map lookup instead of calling loadScores() per category.
-// 	 * @param {{ forceRefresh?: boolean, maxCategories?: number }} [options]
-// 	 * @returns {Promise<object>}
-// 	 */
-// 	console.log("getScoresPerCategory():Loading scores per category...");
-// 	const cached = await getStoredScoreSummary(SCORES_PER_CATEGORY_SUMMARY_KEY);
-// 	if (!forceRefresh && cached?.scoresPerCategory) {
-// 		return cached;
-// 	}
-
-// 	const traitSummary = await getStoredScoreSummary(TRAIT_SUMMARY_KEY);
-// 	if (!traitSummary?.summary && !traitSummary?.categories) {
-// 		throw new Error("Missing trait summary cache (TRAIT_SUMMARY_KEY). Run loadTraitStats() first.");
-// 	}
-
-// 	// Load all scores once and build a Map for fast lookup
-// 	const { scores: allScores } = await loadAllScores();
-// 	const scoreById = new Map(
-// 		allScores
-// 			.filter((score) => score?.id != null)
-// 			.map((score) => [String(score.id), score])
-// 	);
-
-// 	const categoryEntries = getCategoryToPgsIdsFromTraitSummary(traitSummary);
-// 	const scoresPerCategory = {};
-// 	let processedCategories = 0;
-
-// 	for (const [categoryName, pgsIds] of categoryEntries) {
-// 		if (processedCategories >= maxCategories) break;
-// 		console.log(`Building getScoresPerCategory for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
-// 		const categoryScores = pgsIds.map((id) => scoreById.get(String(id))).filter(Boolean);
-// 		scoresPerCategory[categoryName] = {
-// 			pgs_ids: pgsIds,
-// 			scores: categoryScores,
-// 			summary: computeSummary(categoryScores),
-// 		};
-// 		processedCategories += 1;
-// 	}
-
-// 	const payload = {
-// 		savedAt: new Date().toISOString(),
-// 		sourceTraitSavedAt: traitSummary?.savedAt ?? null,
-// 		processedCategories,
-// 		totalCategoryEntries: categoryEntries.length,
-// 		scoresPerCategory,
-// 	};
-
-// 	await localforage.setItem(SCORES_PER_CATEGORY_SUMMARY_KEY, payload);
-// 	return payload;
-// }
-
-// //---------------END OF CATEGORY-SCORE LINKING LOGIC------------------
 
 // Helper to build topTraits array for plotting, using scores-per-trait summary data which links traits to their specific scores and variants info, rather than relying on the more limited topTraits from the all-scores summary.
 async function loadScoreStats({ includeAllScoreStats = false, includeTraitStats = false, includeCategoryStats = false } = {}) {
@@ -4135,7 +4170,7 @@ async function loadScoreStats({ includeAllScoreStats = false, includeTraitStats 
 		if (includeTraitStats) {
 			try {
 				const scoresPerTrait = await getScoresPerTrait();
-				plotTopTraits = buildTopTraitsFromScoresPerTrait(scoresPerTrait, 50);
+				plotTopTraits = buildTopTraitsFromScoresPerTrait(scoresPerTrait, 10);
 			} catch (error) {
 				console.warn("loadScoreStats(): unable to build topTraits from getScoresPerTrait", error);
 			}
@@ -4281,7 +4316,8 @@ if (typeof window !== "undefined") {
 	window.loadScoreStats = loadScoreStats;
 	window.getScoresPerTrait = getScoresPerTrait;
 	window.getScoresPerCategory = getScoresPerCategory;
+	window.getScoresPerCategory2 = getScoresPerCategory2;
 }
 
-export { buildTopCategoriesFromScoresPerCategory, fetchAllScores, fetchScores, getScoresPerCategory, getScoresPerTrait, loadAllScores, loadScoreStats, loadScores };
+export { buildTopCategoriesFromScoresPerCategory, fetchAllScores, fetchScores, getScoresPerCategory, getScoresPerCategory2, getScoresPerTrait, loadAllScores, loadScoreStats, loadScores };
 //# sourceMappingURL=loadScores.bundle.mjs.map

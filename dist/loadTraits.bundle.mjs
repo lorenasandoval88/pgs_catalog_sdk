@@ -2871,14 +2871,6 @@ console.log(`rawTraitArrayFromAPI(), Completed fetching traits. Total fetched: $
   return all;
 }
 
-// ---- run/test fetchAllTraits ----
-// (async () => {
-//   const traits = await fetchAllTraits({ pageSize: 50 });
-//   console.log("PGS Catalog trait stats:");
-//   console.log("Total traits:", traits.length);
-//   console.log("First 5 traits:", traits.slice(0, 5));
-//  // console.log(JSON.stringify(traits, null, 2));
-// })();
 
 // ---- helpers for stats ----
 
