@@ -2847,10 +2847,10 @@ async function rawTraitArrayFromAPI({ pageSize = 50, maxPages = Infinity } = {})
   let page = 0;
   const all = [];
   while (page < maxPages) {
-	console.log("rawTraitArrayFromAPI(), Fetching traits with pageSize:", pageSize, "maxPages:", maxPages);
+	// console.log("rawTraitArrayFromAPI(), Fetching traits with pageSize:", pageSize, "maxPages:", maxPages);
 
     const url = `${BASE}/trait/all?format=json&limit=${pageSize}&offset=${offset}`;
-	console.log("rawTraitArrayFromAPI(), Requesting traits from URL:", url);
+	// console.log("rawTraitArrayFromAPI(), Requesting traits from URL:", url);
     // console.log(`traits****Requesting: ${url}`);
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status} on ${url}`);
@@ -2866,8 +2866,8 @@ async function rawTraitArrayFromAPI({ pageSize = 50, maxPages = Infinity } = {})
     if (!Array.isArray(data) && data.next == null && results.length < pageSize) break;
 
     offset += results.length;
-  }
-console.log(`rawTraitArrayFromAPI(), Completed fetching traits. Total fetched: ${all.length}, all:`, all);
+	}
+// console.log(`rawTraitArrayFromAPI(), Completed fetching traits. Total fetched: ${all.length}, all:`, all);
   return all;
 }
 
@@ -2998,7 +2998,7 @@ function renderTraitPlot(summary) {//used in loadTraitStats()
 
 function computeSummary(traits) {//used in loadTraitStats()
 	//const traits = await rawTraitArrayFromAPI({ pageSize: 200 });
-	console.log(" computeSummary(traits), Computing trait summary for traits:", traits.length);	
+	// console.log(" computeSummary(traits), Computing trait summary for traits:", traits.length);	
 	const byCategory = new Map();
 	const traitDataByCategory = new Map();
 	const pgsIdsByCategory = new Map();
@@ -3086,11 +3086,11 @@ function computeSummary(traits) {//used in loadTraitStats()
 // and otherwise fetch fresh data from PGS and re-cache it.
 
 async function loadTraitStats() {
-	console.log("loadTraitStats()");
+	// console.log("loadTraitStats()");
 	const sourceStatus = document.getElementById("traitSourceStatus");
 	const output = document.getElementById("traitOutput");
 	const cached = await getStoredTraitSummary();
-	console.log("Cached trait summary:", cached);
+	// console.log("Cached trait summary:", cached);
 	try {
 		if (sourceStatus) sourceStatus.textContent = "Source: loading PGS score metadata...";
 
@@ -3103,12 +3103,12 @@ async function loadTraitStats() {
 			}
 			return cached.summary;
 		}
-		console.log("*****Fetching traits from PGS Catalog API...");
+		// console.log("*****Fetching traits from PGS Catalog API...");
 
 		const results = await fetchTraits();
 		const summary = results.summary;
-		console.log('------------------------------');
-		console.log("Total traits fetched:,summary, results:",summary, results);
+		// console.log('------------------------------');
+		// console.log("Total traits fetched:,summary, results:",summary, results);
 
 		renderStats(summary);
 		renderTraitPlot(summary);
@@ -3139,10 +3139,10 @@ async function loadTraitStats() {
 
 
 async function fetchTraits() {
-	console.log("fetchTraits(), Loading fetchTraits()...");
+	// console.log("fetchTraits(), Loading fetchTraits()...");
 
 	const cached = await getStoredTraitSummary();
-	console.log("fetchTraits(), Cached trait data available???", cached);
+	// console.log("fetchTraits(), Cached trait data available???", cached);
 
 	try {
 		if (cached?.summary && isCacheWithinMonths(cached.savedAt, 3)) {
@@ -3154,11 +3154,11 @@ async function fetchTraits() {
 		}
 
 		const traits = await rawTraitArrayFromAPI({ pageSize: 200 });
-		console.log("###############fetchTraits(), Raw traits fetched:", traits.length, traits);
+		// console.log("###############fetchTraits(), Raw traits fetched:", traits.length, traits);
 		const summary = await computeSummary(traits);
-		console.log('------------------------------');
-		console.log("Total traits fetched:", traits.length);
-		console.log("Summary:", summary);
+		// console.log('------------------------------');
+		// console.log("Total traits fetched:", traits.length);
+		// console.log("Summary:", summary);
 
 		const res = {
 			summary: summary,

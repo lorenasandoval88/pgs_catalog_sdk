@@ -1,6 +1,6 @@
 import localforage from "localforage";
 import pako from "pako";
-console.log("get-pgscatalog-scores: getPGS_loadTxts.js loaded")
+// console.log("get-pgscatalog-scores: getPGS_loadTxts.js loaded")
 
 // load all traits (paginated) and log stats about them to console  
 const getScoreUrl = (id, build = 37) => `https://ftp.ebi.ac.uk/pub/databases/spot/pgs/scores/${id}/ScoringFiles/Harmonized/${id}_hmPOS_GRCh${build}.txt.gz`;
@@ -18,12 +18,12 @@ function getByteSize(value) {
 }
 
 async function getTxts(ids) {
-    console.log("getTxts()", ids)
+    // console.log("getTxts()", ids)
     let data = await Promise.all(ids.map(async (id, i) => {
         let score = await localforage.getItem(`${PGS_KEY_PREFIX}${id}`)
-        console.log(`Cache lookup for ${PGS_KEY_PREFIX}${id}:`, score ? "HIT" : "MISS")
+        // console.log(`Cache lookup for ${PGS_KEY_PREFIX}${id}:`, score ? "HIT" : "MISS")
         if (score == null) {
-            console.log(`Cache miss for ${id}. Fetching from network...`)
+            // console.log(`Cache miss for ${id}. Fetching from network...`)
             score = await parseScore(id, await fetchScore(id))
             score.cachedAt = Date.now()
             await localforage.setItem(`${PGS_KEY_PREFIX}${id}`, score);
@@ -57,7 +57,7 @@ async function limitStorage(ids = []){
     });
 
     if (totalBytes < MAX_PGS_CACHE_BYTES) {
-        console.log(`Cache limit: ${(MAX_PGS_CACHE_BYTES / 1024 / 1024).toFixed(0)} MB. Current usage: ${(totalBytes / 1024 / 1024).toFixed(2)} MB. No eviction needed.`);
+        // console.log(`Cache limit: ${(MAX_PGS_CACHE_BYTES / 1024 / 1024).toFixed(0)} MB. Current usage: ${(totalBytes / 1024 / 1024).toFixed(2)} MB. No eviction needed.`);
         return;
     }
 
@@ -78,17 +78,17 @@ async function limitStorage(ids = []){
         await localforage.removeItem(entry.key);
         totalBytes -= entry.entryBytes;
     }
-    console.log(`Cache after eviction: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
+    // console.log(`Cache after eviction: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 
 }
 
 async function fetchScore(id = 'PGS000050', build = 37, range) {
-    console.log("loadScore")
+    // console.log("loadScore")
     let txt = ""
     const MAX_ROWS = 1000000
 
     const url = getScoreUrl(id, build);
-    console.log("loading harmonized pgs score from url", url)
+    // console.log("loading harmonized pgs score from url", url)
 
     if (range) {
         if (typeof (range) == 'number') {

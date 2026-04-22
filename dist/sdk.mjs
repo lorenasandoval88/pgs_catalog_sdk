@@ -2847,10 +2847,10 @@ async function rawTraitArrayFromAPI({ pageSize = 50, maxPages = Infinity } = {})
   let page = 0;
   const all = [];
   while (page < maxPages) {
-	console.log("rawTraitArrayFromAPI(), Fetching traits with pageSize:", pageSize, "maxPages:", maxPages);
+	// console.log("rawTraitArrayFromAPI(), Fetching traits with pageSize:", pageSize, "maxPages:", maxPages);
 
     const url = `${BASE}/trait/all?format=json&limit=${pageSize}&offset=${offset}`;
-	console.log("rawTraitArrayFromAPI(), Requesting traits from URL:", url);
+	// console.log("rawTraitArrayFromAPI(), Requesting traits from URL:", url);
     // console.log(`traits****Requesting: ${url}`);
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status} on ${url}`);
@@ -2866,8 +2866,8 @@ async function rawTraitArrayFromAPI({ pageSize = 50, maxPages = Infinity } = {})
     if (!Array.isArray(data) && data.next == null && results.length < pageSize) break;
 
     offset += results.length;
-  }
-console.log(`rawTraitArrayFromAPI(), Completed fetching traits. Total fetched: ${all.length}, all:`, all);
+	}
+// console.log(`rawTraitArrayFromAPI(), Completed fetching traits. Total fetched: ${all.length}, all:`, all);
   return all;
 }
 
@@ -2998,7 +2998,7 @@ function renderTraitPlot(summary) {//used in loadTraitStats()
 
 function computeSummary$1(traits) {//used in loadTraitStats()
 	//const traits = await rawTraitArrayFromAPI({ pageSize: 200 });
-	console.log(" computeSummary(traits), Computing trait summary for traits:", traits.length);	
+	// console.log(" computeSummary(traits), Computing trait summary for traits:", traits.length);	
 	const byCategory = new Map();
 	const traitDataByCategory = new Map();
 	const pgsIdsByCategory = new Map();
@@ -3086,11 +3086,11 @@ function computeSummary$1(traits) {//used in loadTraitStats()
 // and otherwise fetch fresh data from PGS and re-cache it.
 
 async function loadTraitStats() {
-	console.log("loadTraitStats()");
+	// console.log("loadTraitStats()");
 	const sourceStatus = document.getElementById("traitSourceStatus");
 	const output = document.getElementById("traitOutput");
 	const cached = await getStoredTraitSummary();
-	console.log("Cached trait summary:", cached);
+	// console.log("Cached trait summary:", cached);
 	try {
 		if (sourceStatus) sourceStatus.textContent = "Source: loading PGS score metadata...";
 
@@ -3103,12 +3103,12 @@ async function loadTraitStats() {
 			}
 			return cached.summary;
 		}
-		console.log("*****Fetching traits from PGS Catalog API...");
+		// console.log("*****Fetching traits from PGS Catalog API...");
 
 		const results = await fetchTraits();
 		const summary = results.summary;
-		console.log('------------------------------');
-		console.log("Total traits fetched:,summary, results:",summary, results);
+		// console.log('------------------------------');
+		// console.log("Total traits fetched:,summary, results:",summary, results);
 
 		renderStats$1(summary);
 		renderTraitPlot(summary);
@@ -3139,10 +3139,10 @@ async function loadTraitStats() {
 
 
 async function fetchTraits() {
-	console.log("fetchTraits(), Loading fetchTraits()...");
+	// console.log("fetchTraits(), Loading fetchTraits()...");
 
 	const cached = await getStoredTraitSummary();
-	console.log("fetchTraits(), Cached trait data available???", cached);
+	// console.log("fetchTraits(), Cached trait data available???", cached);
 
 	try {
 		if (cached?.summary && isCacheWithinMonths$1(cached.savedAt, 3)) {
@@ -3154,11 +3154,11 @@ async function fetchTraits() {
 		}
 
 		const traits = await rawTraitArrayFromAPI({ pageSize: 200 });
-		console.log("###############fetchTraits(), Raw traits fetched:", traits.length, traits);
+		// console.log("###############fetchTraits(), Raw traits fetched:", traits.length, traits);
 		const summary = await computeSummary$1(traits);
-		console.log('------------------------------');
-		console.log("Total traits fetched:", traits.length);
-		console.log("Summary:", summary);
+		// console.log('------------------------------');
+		// console.log("Total traits fetched:", traits.length);
+		// console.log("Summary:", summary);
 
 		const res = {
 			summary: summary,
@@ -3316,7 +3316,7 @@ async function fetchAllScores({ pageSize = 200 } = {}) {
 		offset += results.length;
 		// console.log(`[fetchAllScores] next offset=${offset}`);
 	}
-	console.log(`[fetchAllScores] done total=${all.length}`);
+	// console.log(`[fetchAllScores] done total=${all.length}`);
 	return all;
 }
 
@@ -3721,14 +3721,14 @@ async function loadAllScores() {
 	 * Uses all-score LocalForage cache when valid, otherwise fetches and refreshes cache.
 	 * @returns {Promise<{scores: object[], summary: object|null}>}
 	 */
-	console.log("loadAllScores():Loading scores function...");
+	// console.log("loadAllScores():Loading scores function...");
 	const results = {
 		scores: [],
 		summary: null,
 	};
 
 	const cached = await getStoredScoreSummary(ALL_SCORE_SUMMARY_KEY);
-	console.log("loadAllScores():Cached score summary:", cached);
+	// console.log("loadAllScores():Cached score summary:", cached);
 
 	try {
 		if (cached?.summary && isCacheWithinMonths(cached.savedAt, 3)) {
@@ -3776,7 +3776,7 @@ async function loadScores(ids, ...moreIds) {
 	 * @param {...string} moreIds
 	 * @returns {Promise<{scores: object[], summary: object|null}>}
 	 */
-	console.log("loadScores():Loading scores function...");
+	// console.log("loadScores():Loading scores function...");
 	const results = {
 		scores: [],
 		summary: null,
@@ -3789,7 +3789,7 @@ async function loadScores(ids, ...moreIds) {
 			.filter(Boolean)
 	)];
 	const allScoresCached = await getStoredScoreSummary(ALL_SCORE_SUMMARY_KEY);
-	console.log("loadScores():all-score cache present:", Boolean(allScoresCached?.scores?.length));
+	// console.log("loadScores():all-score cache present:", Boolean(allScoresCached?.scores?.length));
 
 	try {
 		if (allScoresCached?.scores && isCacheWithinMonths(allScoresCached.savedAt, 3)) {
@@ -3828,8 +3828,8 @@ async function loadScores(ids, ...moreIds) {
 		const summary = computeSummary(scores);
 		results.scores = scores;
 		results.summary = summary;
-		console.log("------------------------------");
-		console.log("Total scores fetched:", scores.length);
+		// console.log("------------------------------");
+		// console.log("Total scores fetched:", scores.length);
 		// console.log("Fetched scores data:", scores);
 		// console.log("Summary:", summary);
 
@@ -3951,7 +3951,7 @@ async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } 
 	 * @param {{ forceRefresh?: boolean, maxTraits?: number }} [options]
 	 * @returns {Promise<object>}
 	 */
-	console.log("getScoresPerTrait():Loading scores per trait...");
+	// console.log("getScoresPerTrait():Loading scores per trait...");
 	const cached = await getStoredScoreSummary(SCORES_PER_TRAIT_SUMMARY_KEY);
 	if (!forceRefresh && cached?.scoresPerTrait) {
 		return cached;
@@ -3976,7 +3976,7 @@ async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } 
 
 	for (const [traitName, pgsIds] of traitEntries) {
 		if (processedTraits >= maxTraits) break;
-		console.log(`Building getScoresPerTrait for trait ${traitName} with ${pgsIds.length} associated PGS IDs...`);
+		// console.log(`Building getScoresPerTrait for trait ${traitName} with ${pgsIds.length} associated PGS IDs...`);
 		const traitScores = pgsIds.map((id) => scoreById.get(String(id))).filter(Boolean);
 		scoresPerTrait[traitName] = {
 			pgs_ids: pgsIds,
@@ -4008,7 +4008,7 @@ async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infi
 	 * @param {{ forceRefresh?: boolean, maxCategories?: number }} [options]
 	 * @returns {Promise<object>}
 	 */
-	console.log("getScoresPerCategory():Loading scores per category...");
+	// console.log("getScoresPerCategory():Loading scores per category...");
 	const cached = await getStoredScoreSummary(SCORES_PER_CATEGORY_SUMMARY_KEY);
 	if (!forceRefresh && cached?.scoresPerCategory) {
 		return cached;
@@ -4033,7 +4033,7 @@ async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infi
 
 	for (const [categoryName, pgsIds] of categoryEntries) {
 		if (processedCategories >= maxCategories) break;
-		console.log(`Building getScoresPerCategory for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
+		// console.log(`Building getScoresPerCategory for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
 		const categoryScores = pgsIds.map((id) => scoreById.get(String(id))).filter(Boolean);
 		scoresPerCategory[categoryName] = {
 			pgs_ids: pgsIds,
@@ -4061,7 +4061,7 @@ async function getScoresPerCategory2({ forceRefresh = false } = {}) {
 	 * @param {{ forceRefresh?: boolean }} [options]
 	 * @returns {Promise<object>}
 	 */
-	console.log("getScoresPerCategory2():Loading scores per category...");
+	// console.log("getScoresPerCategory2():Loading scores per category...");
 	const cached = await getStoredScoreSummary("SCORES_PER_CATEGORY_SUMMARY_KEY_2");
 	if (!forceRefresh && cached?.categories) {
 		return cached;
@@ -4084,7 +4084,7 @@ async function getScoresPerCategory2({ forceRefresh = false } = {}) {
 	const categories = {};
 
 	for (const [categoryName, pgsIds] of categoryEntries) {
-		console.log(`Building getcategories for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
+		// console.log(`Building getcategories for category: "${categoryName}" with ${pgsIds.length} associated PGS IDs...`);
 		const categoryScores = pgsIds.map((id) => scoreById.get(String(id))).filter(Boolean);
 		categories[categoryName] = {
 			pgs_ids: pgsIds,
@@ -11188,7 +11188,7 @@ var pako = {
 	constants: constants_1
 };
 
-console.log("get-pgscatalog-scores: getPGS_loadTxts.js loaded");
+// console.log("get-pgscatalog-scores: getPGS_loadTxts.js loaded")
 
 // load all traits (paginated) and log stats about them to console  
 const getScoreUrl = (id, build = 37) => `https://ftp.ebi.ac.uk/pub/databases/spot/pgs/scores/${id}/ScoringFiles/Harmonized/${id}_hmPOS_GRCh${build}.txt.gz`;
@@ -11206,12 +11206,12 @@ function getByteSize(value) {
 }
 
 async function getTxts(ids) {
-    console.log("getTxts()", ids);
+    // console.log("getTxts()", ids)
     let data = await Promise.all(ids.map(async (id, i) => {
         let score = await localforage.getItem(`${PGS_KEY_PREFIX}${id}`);
-        console.log(`Cache lookup for ${PGS_KEY_PREFIX}${id}:`, score ? "HIT" : "MISS");
+        // console.log(`Cache lookup for ${PGS_KEY_PREFIX}${id}:`, score ? "HIT" : "MISS")
         if (score == null) {
-            console.log(`Cache miss for ${id}. Fetching from network...`);
+            // console.log(`Cache miss for ${id}. Fetching from network...`)
             score = await parseScore(id, await fetchScore(id));
             score.cachedAt = Date.now();
             await localforage.setItem(`${PGS_KEY_PREFIX}${id}`, score);
@@ -11245,7 +11245,7 @@ async function limitStorage(ids = []){
     });
 
     if (totalBytes < MAX_PGS_CACHE_BYTES) {
-        console.log(`Cache limit: ${(MAX_PGS_CACHE_BYTES / 1024 / 1024).toFixed(0)} MB. Current usage: ${(totalBytes / 1024 / 1024).toFixed(2)} MB. No eviction needed.`);
+        // console.log(`Cache limit: ${(MAX_PGS_CACHE_BYTES / 1024 / 1024).toFixed(0)} MB. Current usage: ${(totalBytes / 1024 / 1024).toFixed(2)} MB. No eviction needed.`);
         return;
     }
 
@@ -11266,17 +11266,17 @@ async function limitStorage(ids = []){
         await localforage.removeItem(entry.key);
         totalBytes -= entry.entryBytes;
     }
-    console.log(`Cache after eviction: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
+    // console.log(`Cache after eviction: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 
 }
 
 async function fetchScore(id = 'PGS000050', build = 37, range) {
-    console.log("loadScore");
+    // console.log("loadScore")
     let txt = "";
     const MAX_ROWS = 1000000;
 
     const url = getScoreUrl(id, build);
-    console.log("loading harmonized pgs score from url", url);
+    // console.log("loading harmonized pgs score from url", url)
 
     {
         txt = pako.inflate(await (await fetch(url)).arrayBuffer(), {
