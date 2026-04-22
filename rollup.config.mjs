@@ -29,6 +29,15 @@ export default [{
         plugins
     },
     {
+        input: "src/js/getPGS_main.js",
+        output: {
+            file: "dist/main.mjs",
+            format: "es",
+            sourcemap: true,
+        },
+        plugins,
+    },
+    {
         input: "sdk.js",
         output: {
             file: "dist/sdk.mjs",

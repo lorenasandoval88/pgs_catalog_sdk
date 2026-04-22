@@ -4319,27 +4319,6 @@ if (typeof window !== "undefined") {
 	window.getScoresPerCategory2 = getScoresPerCategory2;
 }
 
-async function initStats() {
-  try {
-    await Promise.allSettled([
-      loadTraitStats(),
-      loadScoreStats({ includeAllScoreStats: true, includeTraitStats: true, includeCategoryStats: true })
-    ]);
-  } catch (err) {
-    console.error("Failed to initialize stats:", err);
-  }
-}
-
-if (typeof window !== "undefined") {
-  window.initStats = initStats;
-  window.loadTraitStats = loadTraitStats;
-  window.loadScoreStats = loadScoreStats;
-}
-
-if (typeof document !== "undefined") {
-  document.addEventListener("DOMContentLoaded", initStats);
-}
-
 /*! pako 2.1.0 https://github.com/nodeca/pako @license (MIT AND Zlib) */
 // (C) 1995-2013 Jean-loup Gailly and Mark Adler
 // (C) 2014-2017 Vitaly Puzrin and Andrey Tupitsin

@@ -1,5 +1,6 @@
 
 
+import localforage from "localforage";
 import { loadTraitStats } from "./getPGS_loadTraits.js";
 import { loadScoreStats } from "./getPGS_loadScores.js";
 
@@ -15,6 +16,7 @@ export async function initStats() {
 }
 
 if (typeof window !== "undefined") {
+  window.localforage = localforage;
   window.initStats = initStats;
   window.loadTraitStats = loadTraitStats;
   window.loadScoreStats = loadScoreStats;

@@ -1,5 +1,4 @@
 import localforage from "localforage";
-import "./src/js/getPGS_main.js";
 
 export { localforage };
 export { loadAllScores,loadScores,fetchScores } from "./src/js/getPGS_loadScores.js"; // re-export for external use
