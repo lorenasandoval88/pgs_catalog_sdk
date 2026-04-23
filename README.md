@@ -1,4 +1,4 @@
-#pgs_catalog_sdk
+# pgs_catalog_sdk
 
 Retrieve **polygenic score metadata and summaries** from the **PGS Catalog REST API** directly in the browser.
 
@@ -8,7 +8,7 @@ This lightweight JavaScript SDK fetches PGS score information, caches it in brow
 
 ## Live Demo
 
-https://lorenasandoval88.github.io/get-pgscatalog-scores/
+https://lorenasandoval88.github.io/pgs_catalog_sdk/
 ---
 
 ## Documentation
