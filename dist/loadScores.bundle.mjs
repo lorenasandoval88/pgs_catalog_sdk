@@ -2838,7 +2838,7 @@ var localforage = /*@__PURE__*/getDefaultExportFromCjs(localforageExports);
 
 const PGS_BASE = "https://www.pgscatalog.org/rest";
 
-const ALL_SCORE_SUMMARY_KEY = "PGS_Catalog:all-score-summary"; //fetchAllScores() & loadScores() uses this key to cache the full list of scores and their summary, which loadScores() can then use to source individual scores by ID without needing to fetch from network if cache is valid. Also used as source for getScoresPerTrait() / getScoresPerCategory() to link traits or categories to their specific scores and variants info, rather than relying on the more limited topTraits from the all-scores summary.
+const ALL_SCORE_SUMMARY_KEY = "PGS_Catalog:all-score-summary"; //fetchAllScores() & fetchSomeScores() uses this key to cache the full list of scores and their summary, which fetchSomeScores() can then use to source individual scores by ID without needing to fetch from network if cache is valid. Also used as source for getScoresPerTrait() / getScoresPerCategory() to link traits or categories to their specific scores and variants info, rather than relying on the more limited topTraits from the all-scores summary.
 const TRAIT_SUMMARY_KEY = "PGS_Catalog:trait-summary"; // needed in getScoresPerTrait() and getScoresPerCategory()
 const SCORES_PER_TRAIT_SUMMARY_KEY = "PGS_Catalog:scores-per-trait-summary"; // needed in getScoresPerTrait()
 const SCORES_PER_CATEGORY_SUMMARY_KEY = "PGS_Catalog:scores-per-category-summary"; // needed in getScoresPerCategory()
@@ -2907,114 +2907,6 @@ function getFetchAllScoresErrorMessage(error, context = {}) {
 	}
 
 	return `Unable to load all PGS scores from the PGS Catalog.${locationText} ${message}.${retryText}${urlText}`;
-}
-
-
-
-// ---- core: fetch one or more scores by ID ----
-// What it does:
-
-// Accepts flexible input - Takes a single ID or an array of IDs
-// Normalizes & deduplicates - Converts to strings, trims whitespace, and removes duplicates
-// Fetches from API - Calls https://www.pgscatalog.org/rest/score/{id} for each ID
-// Rate-limited - Includes a 200ms delay between requests for safety
-// Returns results - Array of score objects; skips IDs that fail to fetch (with warnings)
-async function fetchScores(ids = []) {
-	/**
-	 * Fetch one or more PGS scoring files by ID.
-	 * Accepts a single ID or array; normalizes and de-duplicates IDs.
-	 * @param {string|string[]} ids
-	 * @returns {Promise<object[]>}
-	 */
-	const inputIds = Array.isArray(ids) ? ids : [ids];
-	const normalizedIds = [...new Set(
-		inputIds
-			.map((id) => String(id ?? "").trim())
-			.filter(Boolean)
-	)];
-	const results = [];
-
-	for (const id of normalizedIds) {
-		const url = `${PGS_BASE}/score/${id}`;
-
-		const response = await fetch(url);
-
-		if (!response.ok) {
-			console.warn(`Skipping ${id} (status ${response.status})`);
-			continue;
-		}
-
-		const data = await response.json();
-		results.push(data);
-		await new Promise((r) => setTimeout(r, 200)); // rate safety
-	}
-
-	return results;
-}
-// ---- core: fetch all scores (paginated) ---- total: 5298 as of 2024-06-20
-// Rate-limited - Includes a 200ms delay between requests for safety
-  // REST docs indicate paginated responses; default is 50 per page. :contentReference[oaicite:4]{index=4}
-async function fetchAllApiScores({ pageSize = 200 } = {}) {
-	/**
-	 * Fetch all PGS scoring files from the paginated API.
-	 * @param {{ pageSize?: number }} [options]
-	 * @returns {Promise<object[]>}
-	 */
-	let offset = 0;
-	const all = [];
-	let page = 0;
-
-	console.log(`loading all scores from paginated API with page size ${pageSize}...`);
-
-	while (true) {
-		page += 1;
-		const url = `${PGS_BASE}/score/all?format=json&limit=${pageSize}&offset=${offset}`;
-		// console.log(`[fetchAllScores] page ${page} request: ${url}`);
-		let response;
-		try {
-			response = await fetch(url);
-		} catch (error) {
-			throw new Error(getFetchAllScoresErrorMessage(error, {
-				page,
-				offset,
-				pageSize,
-				url,
-			}));
-		}
-		if (!response.ok) {
-			throw new Error(getFetchAllScoresErrorMessage(null, {
-				page,
-				offset,
-				pageSize,
-				url,
-				status: response.status,
-			}));
-		}
-		const data = await response.json();
-
-		const results = Array.isArray(data) ? data : (data.results ?? []);
-		if (!Array.isArray(results)) throw new Error("Unexpected response format from PGS API.");
-
-		// console.log(	`[fetchAllApiScores] page ${page} received=${results.length} total_so_far=${all.length + results.length}`
-		//);
-
-		all.push(...results);
-
-		if (results.length === 0) {
-			// console.log(`[fetchAllApiScores] stop: empty page at page ${page}`);
-			break;
-		}
-		if (!Array.isArray(data) && data.next == null && results.length < pageSize) {
-			// console.log(`[fetchAllApiScores] stop: last page reached at page ${page}`);
-			break;
-		}
-
-		offset += results.length;
-		// console.log(`[fetchAllApiScores] next offset=${offset}`);
-		await new Promise((r) => setTimeout(r, 100)); // rate safety
-	}
-	// console.log(`[fetchAllApiScores] done total=${all.length}`);
-	return all;
 }
 
 function computeSummary(scores) {//Total scores fetched: 5296,Unique traits: 1,727
@@ -3266,16 +3158,85 @@ function buildTopCategoriesFromScoresPerCategory(scoresPerCategoryPayload) {
 		.sort((a, b) => b[1] - a[1]);
 }
 
+
+
+// ---- core: fetch all scores (paginated) ---- total: 5298 as of 2024-06-20
+// Rate-limited - Includes a 200ms delay between requests for safety
+  // REST docs indicate paginated responses; default is 50 per page. :contentReference[oaicite:4]{index=4}
+async function fetchAllApiScores({ pageSize = 200 } = {}) {
+	/**
+	 * Fetch all PGS scoring files from the paginated API.
+	 * @param {{ pageSize?: number }} [options]
+	 * @returns {Promise<object[]>}
+	 */
+	let offset = 0;
+	const all = [];
+	let page = 0;
+
+	console.log(`loading all scores from paginated API with page size ${pageSize}...`);
+
+	while (true) {
+		page += 1;
+		const url = `${PGS_BASE}/score/all?format=json&limit=${pageSize}&offset=${offset}`;
+		// console.log(`[fetchAllScores] page ${page} request: ${url}`);
+		let response;
+		try {
+			response = await fetch(url);
+		} catch (error) {
+			throw new Error(getFetchAllScoresErrorMessage(error, {
+				page,
+				offset,
+				pageSize,
+				url,
+			}));
+		}
+		if (!response.ok) {
+			throw new Error(getFetchAllScoresErrorMessage(null, {
+				page,
+				offset,
+				pageSize,
+				url,
+				status: response.status,
+			}));
+		}
+		const data = await response.json();
+
+		const results = Array.isArray(data) ? data : (data.results ?? []);
+		if (!Array.isArray(results)) throw new Error("Unexpected response format from PGS API.");
+
+		// console.log(	`[fetchAllApiScores] page ${page} received=${results.length} total_so_far=${all.length + results.length}`
+		//);
+
+		all.push(...results);
+
+		if (results.length === 0) {
+			// console.log(`[fetchAllApiScores] stop: empty page at page ${page}`);
+			break;
+		}
+		if (!Array.isArray(data) && data.next == null && results.length < pageSize) {
+			// console.log(`[fetchAllApiScores] stop: last page reached at page ${page}`);
+			break;
+		}
+
+		offset += results.length;
+		// console.log(`[fetchAllApiScores] next offset=${offset}`);
+		await new Promise((r) => setTimeout(r, 100)); // rate safety
+	}
+	// console.log(`[fetchAllApiScores] done total=${all.length}`);
+	return all;
+}
+
 // ES6 MODULE: fetchAllScores() is the main function to get scores data and summary,
 // using cache if available and valid, and falling back to cache if fetch fails.
 // Higher-level app function
 // Checks LocalForage cache first (3-month validity)
 // If needed, calls fetchAllScores(), computes summary, caches result
 // Returns { scores, summary } (not just raw array)
-async function fetchAllScores() {
+async function fetchAllScores({ cache = true, pageSize = 200 } = {}) {
 	/**
 	 * Load full score dataset and summary.
 	 * Uses all-score LocalForage cache when valid, otherwise fetches and refreshes cache.
+	 * @param {{ cache?: boolean, pageSize?: number }} [options]
 	 * @returns {Promise<{scores: object[], summary: object|null}>}
 	 */
 	// console.log("fetchAllScores():Loading scores function...");
@@ -3287,11 +3248,10 @@ async function fetchAllScores() {
 		savedAt: null,
 	};
 
-	const cached = await getStoredScoreSummary(ALL_SCORE_SUMMARY_KEY);
-	console.log("fetchAllScores():main function to get scores data and summary, cached data:", cached);
+	const cached = cache ? await getStoredScoreSummary(ALL_SCORE_SUMMARY_KEY) : null;
 
 	try {
-		if (cached?.summary && isCacheWithinMonths(cached.savedAt, 3)) {
+		if (cache && cached?.summary && isCacheWithinMonths(cached.savedAt, 3)) {
 			results.summary = cached.summary;
 			results.scores = cached.scores ?? [];
 			results.source = "cache";
@@ -3300,13 +3260,14 @@ async function fetchAllScores() {
 			return results;
 		}
 
-		const scores = await fetchAllApiScores({ pageSize: 200 });
-		console.log("fetchAllScores():Total scores fetched:", scores.length, scores);
+		const scores = await fetchAllApiScores({ pageSize });
 
 		const summary = computeSummary(scores);
 		results.scores = scores;
 		results.summary = summary;
-		await saveScoreSummary(results, ALL_SCORE_SUMMARY_KEY);
+		if (cache) {
+			await saveScoreSummary(results, ALL_SCORE_SUMMARY_KEY);
+		}
 		results.source = "live";
 		results.savedAt = new Date().toISOString();
 
@@ -3314,7 +3275,7 @@ async function fetchAllScores() {
 		return results;
 	} catch (error) {
 		results.errorMessage = getFetchAllScoresErrorMessage(error);
-		if (cached?.summary) {
+		if (cache && cached?.summary) {
 			results.summary = cached.summary;
 			results.scores = cached.scores ?? [];
 			results.source = "cache-fallback";
@@ -3329,25 +3290,39 @@ async function fetchAllScores() {
 }
 
 
-// LOADS SPECIFIC SCORES BY ID
-// What happens:
-// 1. Checks if PGS_Catalog:all-score-summary cache exists and is valid (< 3 months)
-// 2. If valid → extracts requested IDs from cached data (no network call)
-// 3. If IDs are missing from cache → fetches only missing IDs via fetchScores()
-// 4. Returns results but does NOT save them back to cache (cache is only for full list, not individual scores)
-async function loadScores(ids, ...moreIds) {
+// ---- core: fetch some scores by ID (cache-aware) ----
+// What it does:
+// Accepts flexible input - Takes a single ID, an array of IDs, or multiple ID arguments
+// Optional cache usage - Uses the all-score cache first when { cache: true }
+// Fills cache misses - Fetches only missing IDs via fetchSomeAPIScores()
+// Returns results - { scores, summary } for the requested IDs only
+async function fetchSomeScores(ids, ...args) {
 	/**
 	 * Load specific scores by ID.
 	 * Prefers all-score cache and fetches only missing IDs when needed.
 	 * @param {string|string[]} ids
-	 * @param {...string} moreIds
+	 * @param {...(string|{cache?: boolean})} args
 	 * @returns {Promise<{scores: object[], summary: object|null}>}
 	 */
-	// console.log("loadScores():Loading scores function...");
+	// console.log("fetchSomeScores():Loading scores function...");
 	const results = {
 		scores: [],
 		summary: null,
 	};
+
+	let options = {};
+	let moreIds = args;
+	const maybeOptions = args.at(-1);
+	if (
+		maybeOptions
+		&& typeof maybeOptions === "object"
+		&& !Array.isArray(maybeOptions)
+	) {
+		options = maybeOptions;
+		moreIds = args.slice(0, -1);
+	}
+
+	const { cache = true } = options;
 	const rawIds = moreIds.length ? [ids, ...moreIds] : ids;
 	const inputIds = Array.isArray(rawIds) ? rawIds : [rawIds];
 	const requestedIds = [...new Set(
@@ -3355,11 +3330,11 @@ async function loadScores(ids, ...moreIds) {
 			.map((id) => String(id ?? "").trim())
 			.filter(Boolean)
 	)];
-	const allScoresCached = await getStoredScoreSummary(ALL_SCORE_SUMMARY_KEY);
-	// console.log("loadScores():all-score cache present:", Boolean(allScoresCached?.scores?.length));
+	const allScoresCached = cache ? await getStoredScoreSummary(ALL_SCORE_SUMMARY_KEY) : null;
+	// console.log("fetchSomeScores():all-score cache present:", Boolean(allScoresCached?.scores?.length));
 
 	try {
-		if (allScoresCached?.scores && isCacheWithinMonths(allScoresCached.savedAt, 3)) {
+		if (cache && allScoresCached?.scores && isCacheWithinMonths(allScoresCached.savedAt, 3)) {
 			const scoreById = new Map(
 				allScoresCached.scores
 					.filter((score) => score?.id != null)
@@ -3376,8 +3351,8 @@ async function loadScores(ids, ...moreIds) {
 			}
 
 			const missingIds = requestedIds.filter((id) => !scoreById.has(id));
-			console.warn("loadScores(): missing IDs in all-score cache, fetching:", missingIds);
-			const fetchedMissingScores = await fetchScores(missingIds);
+			console.warn("fetchSomeScores(): missing IDs in all-score cache, fetching:", missingIds);
+			const fetchedMissingScores = await fetchSomeAPIScores(missingIds);
 			const fetchedById = new Map(
 				fetchedMissingScores
 					.filter((score) => score?.id != null)
@@ -3391,7 +3366,7 @@ async function loadScores(ids, ...moreIds) {
 			return results;
 		}
 
-		const scores = await fetchScores(requestedIds);
+		const scores = await fetchSomeAPIScores(requestedIds);
 		const summary = computeSummary(scores);
 		results.scores = scores;
 		results.summary = summary;
@@ -3407,6 +3382,45 @@ async function loadScores(ids, ...moreIds) {
 	}
 }
 
+// ---- core: fetch some scores by ID from the API ----
+// What it does:
+// Accepts flexible input - Takes a single ID or an array of IDs
+// Normalizes & deduplicates - Converts inputs to strings, trims whitespace, and removes duplicates
+// Fetches directly from the API - Calls https://www.pgscatalog.org/rest/score/{id} for each requested ID
+// Rate-limited - Includes a 200ms delay between requests for safety
+// Returns results - Array of fetched score objects; skips IDs that fail to fetch (with warnings)
+async function fetchSomeAPIScores(ids = []) {
+	/**
+	 * Fetch one or more PGS scoring files by ID.
+	 * Accepts a single ID or array; normalizes and de-duplicates IDs.
+	 * @param {string|string[]} ids
+	 * @returns {Promise<object[]>}
+	 */
+	const inputIds = Array.isArray(ids) ? ids : [ids];
+	const normalizedIds = [...new Set(
+		inputIds
+			.map((id) => String(id ?? "").trim())
+			.filter(Boolean)
+	)];
+	const results = [];
+
+	for (const id of normalizedIds) {
+		const url = `${PGS_BASE}/score/${id}`;
+
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			console.warn(`Skipping ${id} (status ${response.status})`);
+			continue;
+		}
+
+		const data = await response.json();
+		results.push(data);
+		await new Promise((r) => setTimeout(r, 200)); // rate safety
+	}
+
+	return results;
+}
 //---------------START OF TRAIT-SCORE AND CATEGORY-SCORE LINKING LOGIC------------------
 
 function getAssociatedPgsIdsFromTrait(trait) {
@@ -3514,7 +3528,7 @@ function getTraitToPgsIdsFromTraitSummary(traitSummary) {
 async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } = {}) {
 	/**
 	 * Build and cache trait -> scores mapping using trait-summary-linked PGS IDs.
-	 * Optimized: loads all scores once and builds a Map lookup instead of calling loadScores() per trait.
+	 * Optimized: loads all scores once and builds a Map lookup instead of calling fetchSomeScores() per trait.
 	 * @param {{ forceRefresh?: boolean, maxTraits?: number }} [options]
 	 * @returns {Promise<object>}
 	 */
@@ -3571,7 +3585,7 @@ async function getScoresPerTrait({ forceRefresh = false, maxTraits = Infinity } 
 async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infinity } = {}) {
 	/**
 	 * Build and cache category -> scores mapping using trait-summary-linked PGS IDs.
-	 * Optimized: loads all scores once and builds a Map lookup instead of calling loadScores() per category.
+	 * Optimized: loads all scores once and builds a Map lookup instead of calling fetchSomeScores() per category.
 	 * @param {{ forceRefresh?: boolean, maxCategories?: number }} [options]
 	 * @returns {Promise<object>}
 	 */
@@ -3624,7 +3638,7 @@ async function getScoresPerCategory({ forceRefresh = false, maxCategories = Infi
 async function getScoresPerCategory2({ forceRefresh = false } = {}) {
 	/**
 	 * Build and cache category -> scores mapping using trait-summary-linked PGS IDs.
-	 * Optimized: loads all scores once and builds a Map lookup instead of calling loadScores() per category.
+	 * Optimized: loads all scores once and builds a Map lookup instead of calling fetchSomeScores() per category.
 	 * @param {{ forceRefresh?: boolean }} [options]
 	 * @returns {Promise<object>}
 	 */
@@ -3675,13 +3689,13 @@ async function getScoresPerCategory2({ forceRefresh = false } = {}) {
 
 // Expose for dev console
 if (typeof window !== "undefined") {
-	window.loadScores = loadScores;
-	window.fetchScores = fetchScores;
+	window.fetchSomeScores = fetchSomeScores;
+	window.fetchSomeAPIScores = fetchSomeAPIScores;
 	window.fetchAllScores = fetchAllScores;
 	window.getScoresPerTrait = getScoresPerTrait;
 	window.getScoresPerCategory = getScoresPerCategory;
 	window.getScoresPerCategory2 = getScoresPerCategory2;
 }
 
-export { buildTopCategoriesFromScoresPerCategory, buildTopTraitsFromScoresPerTrait, fetchAllApiScores, fetchAllScores, fetchScores, getScoresPerCategory, getScoresPerCategory2, getScoresPerTrait, loadScores };
+export { buildTopCategoriesFromScoresPerCategory, buildTopTraitsFromScoresPerTrait, fetchAllApiScores, fetchAllScores, fetchSomeAPIScores, fetchSomeScores, getScoresPerCategory, getScoresPerCategory2, getScoresPerTrait };
 //# sourceMappingURL=loadScores.bundle.mjs.map

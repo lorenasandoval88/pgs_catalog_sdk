@@ -2896,8 +2896,6 @@ function isCacheWithinMonths(savedAt, months = 3) {
 }
 
 
-
-
 // ---- main function to load trait stats, with caching ----
 
 function computeSummary(traits) {//used in fetchDataAndRenderPlots()
@@ -3030,7 +3028,7 @@ async function fetchTraits() {
 
 // Expose for dev console
 if (typeof window !== "undefined") {
-	window.rawTraitArrayFromAPI = rawTraitArrayFromAPI;
+	//window.rawTraitArrayFromAPI = rawTraitArrayFromAPI;
 	window.fetchTraits = fetchTraits;
 }
 

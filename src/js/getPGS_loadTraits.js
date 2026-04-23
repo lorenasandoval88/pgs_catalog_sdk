@@ -61,34 +61,6 @@ function isCacheWithinMonths(savedAt, months = 3) {
 	return savedDate >= cutoff;
 }
 
-function getCategoryEntries(summary) {
-	const entries = Array.isArray(summary?.categories)
-		? summary.categories
-		: (Array.isArray(summary?.topCategories) ? summary.topCategories : []);
-
-	return entries.map((entry) => {
-		if (Array.isArray(entry)) {
-			const pgsIds = Array.isArray(entry[2]) ? entry[2] : [];
-			return {
-				category: entry[0],
-				"traits_count": entry[1],
-				"pgs_ids": pgsIds,
-				"pgs_ids_count": pgsIds.length,
-				"traits": entry[3] ?? [],
-			};
-		}
-		if (entry && typeof entry === "object" && Array.isArray(entry["pgs_ids"])) {
-			return {
-				...entry,
-				"pgs_ids_count": entry["pgs_ids"].length,
-			};
-		}
-		return entry;
-	});
-}
-
-
-
 
 // ---- main function to load trait stats, with caching ----
 
@@ -222,6 +194,6 @@ export async function fetchTraits() {
 
 // Expose for dev console
 if (typeof window !== "undefined") {
-	window.rawTraitArrayFromAPI = rawTraitArrayFromAPI;
+	//window.rawTraitArrayFromAPI = rawTraitArrayFromAPI;
 	window.fetchTraits = fetchTraits;
 }
