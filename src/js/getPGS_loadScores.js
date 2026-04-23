@@ -560,7 +560,7 @@ export async function loadAllScores() {
 		results.summary = summary;
 		await saveScoreSummary(results, ALL_SCORE_SUMMARY_KEY);
 		// console.log("------------------------------");
-		// console.log("Total scores fetched:", scores.length, scores);
+		console.log("Total scores fetched:", scores.length, scores);
 		// console.log("Fetched scores data:", scores);
 		// console.log("Summary:", summary);
 
